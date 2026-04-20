@@ -6,6 +6,7 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
+import Settings from './pages/Settings';
 
 function App() {
   return (
@@ -21,6 +22,17 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <Dashboard />
+                </Layout>
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/settings" 
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Settings />
                 </Layout>
               </ProtectedRoute>
             } 

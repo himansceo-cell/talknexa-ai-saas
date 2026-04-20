@@ -71,9 +71,13 @@ class ClientManager {
 
       // Handle the message with AI
       try {
+        // Fetch business settings for context
+        const settingsSnap = await db.collection("botSettings").doc(userId).get();
+        const businessContext = settingsSnap.exists() ? settingsSnap.data() : {};
+
         // Simple context management (for MVP we can store in memory or Firestore)
         // For now, let's just pass the message
-        const aiResponse = await processMessage(msg.body);
+        const aiResponse = await processMessage(msg.body, [], businessContext);
         
         if (aiResponse.extractedData) {
           // All fields collected! Save to Firestore

@@ -29,7 +29,9 @@ const Sidebar = () => {
     { name: 'Concierge', icon: <LayoutDashboard size={18} strokeWidth={1.5} />, path: '/' },
     { name: 'Appointments', icon: <Calendar size={18} strokeWidth={1.5} />, path: '/appointments' },
     { name: 'Client List', icon: <Users size={18} strokeWidth={1.5} />, path: '/customers' },
-    { name: 'AI Persona', icon: <MessageSquare size={18} strokeWidth={1.5} />, path: '/settings' },
+    { name: 'Queue', icon: <Calendar size={18} strokeWidth={1.5} />, path: '/' },
+    { name: 'Network', icon: <Users size={18} strokeWidth={1.5} />, path: '/network' },
+    { name: 'Train AI', icon: <Settings size={18} strokeWidth={1.5} />, path: '/settings' },
   ];
 
   return (
