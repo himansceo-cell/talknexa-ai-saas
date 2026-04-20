@@ -1,0 +1,78 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@700;800&display=swap');
+
+@theme {
+  --color-primary: #2a14b4;
+  --color-primary-fixed: #e3dfff;
+  --color-on-primary: #ffffff;
+  --color-on-primary-fixed: #100069;
+  --color-secondary: #4648d4;
+  --color-tertiary: #4b00a7;
+  
+  --color-surface: #f8f9fa;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f3f4f5;
+  --color-surface-container: #edeeef;
+  --color-surface-container-high: #e7e8e9;
+  
+  --color-on-surface: #191c1d;
+  --color-on-surface-variant: #464554;
+  --color-outline-variant: rgba(199, 196, 215, 0.2);
+
+  --font-manrope: 'Manrope', sans-serif;
+  --font-inter: 'Inter', sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-on-surface font-inter antialiased;
+    letter-spacing: -0.01em;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-manrope font-extrabold tracking-tight text-on-surface;
+  }
+}
+
+@layer components {
+  .surface-elevated {
+    @apply bg-surface-container-lowest transition-all duration-300;
+  }
+  
+  .glass-effect {
+    @apply bg-surface-container-lowest/70 backdrop-blur-xl border border-white/20;
+  }
+
+  .btn-indigo {
+    @apply bg-primary text-on-primary px-6 py-3 rounded-[0.25rem] font-medium 
+           hover:bg-tertiary shadow-lg shadow-primary/10 transition-all active:scale-[0.98]
+           flex items-center justify-center gap-2;
+  }
+
+  .input-field {
+    @apply w-full bg-surface-container px-4 py-3 rounded-xl border-none outline-none
+           focus:bg-surface-container-lowest focus:ring-1 focus:ring-primary/20 transition-all text-on-surface;
+  }
+
+  /* WhatsApp Style Overrides */
+  .chat-bubble-received {
+    @apply bg-surface-container-lowest text-on-surface rounded-[0.75rem] p-4 shadow-sm;
+  }
+
+  .chat-bubble-sent {
+    @apply bg-primary text-on-primary rounded-[0.75rem] p-4 shadow-md;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-on-surface-variant/20 rounded-full hover:bg-on-surface-variant/40;
+}
