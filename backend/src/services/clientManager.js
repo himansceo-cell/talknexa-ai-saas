@@ -1,7 +1,10 @@
-const { Client, LocalAuth } = require("whatsapp-web.js");
+const { Client, LocalAuth, MessageMedia } = require("whatsapp-web.js");
 const { processMessage } = require("./aiService");
 const { db, admin } = require("./firebaseAdmin");
 const qrcode = require("qrcode");
+const { createPaymentLink } = require("./paymentService");
+const { createCalendarEvent, isSlotAvailable } = require("./calendarService");
+const { textToSpeech } = require("./ttsService");
 
 class ClientManager {
   constructor() {
@@ -71,33 +74,96 @@ class ClientManager {
 
       // Handle the message with AI
       try {
+        let audioBuffer = null;
+        let mimeType = null;
+
+        if (msg.hasMedia) {
+          const media = await msg.downloadMedia();
+          if (media.mimetype.includes("audio")) {
+            audioBuffer = Buffer.from(media.data, "base64");
+            mimeType = media.mimetype;
+            console.log(`Audio media received from ${msg.from}`);
+          }
+        }
+
         // Fetch business settings for context
         const settingsSnap = await db.collection("botSettings").doc(userId).get();
         const businessContext = settingsSnap.exists() ? settingsSnap.data() : {};
 
-        // Simple context management (for MVP we can store in memory or Firestore)
-        // For now, let's just pass the message
-        const aiResponse = await processMessage(msg.body, [], businessContext);
+        const aiResponse = await processMessage(msg.body, [], businessContext, audioBuffer, mimeType);
         
         if (aiResponse.extractedData) {
-          // All fields collected! Save to Firestore
+          // 0. Check Google Calendar Availability (Conflict Prevention)
+          const isAvailable = await isSlotAvailable(userId, aiResponse.extractedData.date, aiResponse.extractedData.time);
+          
+          if (!isAvailable) {
+            const conflictReply = "I'm sorry, but that time slot has just been taken. Could you please suggest another time or date?";
+            await msg.reply(conflictReply);
+            
+            // Send voice for conflict too
+            if (process.env.ELEVENLABS_API_KEY) {
+              const audioBase64 = await textToSpeech(conflictReply);
+              if (audioBase64) {
+                const media = new MessageMedia("audio/mpeg", audioBase64);
+                await client.sendMessage(msg.from, media, { sendAudioAsVoice: true });
+              }
+            }
+            return;
+          }
+
+          // 1. Generate Payment Link
+          const depositAmount = businessContext.depositAmount || 20; // Default $20
+          const paymentLink = await createPaymentLink(
+            aiResponse.extractedData.name,
+            aiResponse.extractedData.service,
+            depositAmount
+          );
+
+          // 2. Save appointment as pending
           const appointment = {
             userId: userId,
             customerName: aiResponse.extractedData.name,
             service: aiResponse.extractedData.service,
             date: aiResponse.extractedData.date,
             time: aiResponse.extractedData.time,
-            status: "confirmed",
+            status: paymentLink ? "pending_payment" : "confirmed", 
             customerPhone: msg.from,
+            reminded: false,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
           };
 
           await db.collection("appointments").add(appointment);
           
-          await msg.reply(aiResponse.reply || "Your appointment is confirmed ✅");
+          // 3. Try to sync to Google Calendar (if linked)
+          createCalendarEvent(userId, appointment).catch(e => console.error("Auto-sync failed:", e));
+          
+          let finalReply = aiResponse.reply;
+          if (paymentLink) {
+            finalReply += `\n\n💳 *To finalize your booking, please complete the $${depositAmount} deposit here:* ${paymentLink}\n\n_Your slot is reserved for the next 15 minutes._`;
+          }
+
+          await msg.reply(finalReply);
+
+          // 4. Send Voice Response (Premium Experience)
+          if (process.env.ELEVENLABS_API_KEY) {
+            const audioBase64 = await textToSpeech(aiResponse.reply);
+            if (audioBase64) {
+              const media = new MessageMedia("audio/mpeg", audioBase64);
+              await client.sendMessage(msg.from, media, { sendAudioAsVoice: true });
+            }
+          }
         } else {
           // Information still missing, send AI follow-up
           await msg.reply(aiResponse.reply);
+          
+          // Optional: Send voice for follow-up too
+          if (process.env.ELEVENLABS_API_KEY) {
+            const audioBase64 = await textToSpeech(aiResponse.reply);
+            if (audioBase64) {
+              const media = new MessageMedia("audio/mpeg", audioBase64);
+              await client.sendMessage(msg.from, media, { sendAudioAsVoice: true });
+            }
+          }
         }
       } catch (error) {
         console.error("Error processing message with AI:", error);

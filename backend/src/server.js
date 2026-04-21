@@ -6,6 +6,9 @@ require("dotenv").config();
 
 const clientManager = require("./services/clientManager");
 const { db, auth } = require("./services/firebaseAdmin");
+const { getAssistantResponse } = require("./services/aiAssistant");
+const { getRecentPayments } = require("./services/paymentService");
+const { initReminderService } = require("./services/reminderService");
 
 const app = express();
 const server = http.createServer(app);
@@ -108,6 +111,62 @@ app.post("/api/whatsapp/restart", authenticate, async (req, res) => {
     res.status(500).json({ error: "Failed to restart WhatsApp session" });
   }
 });
+
+// Business Analytics
+app.get("/api/analytics", authenticate, async (req, res) => {
+  try {
+    const snapshot = await db.collection("appointments")
+      .where("userId", "==", req.user.uid)
+      .get();
+    
+    const stats = {
+      totalBookings: snapshot.size,
+      servicePopularity: {},
+      weeklyBookings: Array(7).fill(0), // Placeholder for actual time-series logic
+    };
+
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      stats.servicePopularity[data.service] = (stats.servicePopularity[data.service] || 0) + 1;
+    });
+
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch analytics" });
+  }
+});
+
+// AI Assistant Chat
+app.post("/api/assistant/chat", authenticate, async (req, res) => {
+  try {
+    const { message, chatHistory } = req.body;
+    const response = await getAssistantResponse(req.user.uid, message, chatHistory);
+    res.json(response);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Payments Stats Route
+app.get("/api/payments/stats", authenticate, async (req, res) => {
+  try {
+    const payments = await getRecentPayments(50);
+    const totalRevenue = payments
+      .filter(p => p.paymentStatus === "paid")
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    res.json({
+      totalRevenue,
+      recentPayments: payments.slice(0, 5),
+      paymentCount: payments.length
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Initialize Automated Services
+initReminderService();
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {

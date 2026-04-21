@@ -15,10 +15,14 @@
     "@google/generative-ai": "^0.24.1",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
+    "elevenlabs-node": "^2.0.3",
     "express": "^5.2.1",
     "firebase-admin": "^13.8.0",
+    "googleapis": "^171.4.0",
+    "node-cron": "^4.2.1",
     "qrcode": "^1.5.4",
     "socket.io": "^4.8.3",
+    "stripe": "^22.0.2",
     "whatsapp-web.js": "^1.34.6"
   }
 }

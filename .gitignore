@@ -1,38 +1,27 @@
-# Dependencies
+# Dependency directories
 node_modules/
-.npm/
+dist/
+dist-ssr/
+*.local
 
-# Environment Variables
+# Environment variables
 .env
+.env.production
 .env.local
 .env.development
-.env.test
-.env.production
 *.env
 
-# Firebase
-.firebase/
-firebase-debug.log*
-firestore-debug.log*
-ui-debug.log*
-serviceAccountKey.json
+# Firebase service account
+firebase-service-account.json
 
-# Build
-dist/
-build/
-
-# IDEs/Editors
+# IDE settings
 .vscode/
 .idea/
-*.swp
-*.swo
+
+# OS files
 .DS_Store
+Thumbs.db
 
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# WhatsApp Sessions
+# WhatsApp Session data (Important: do not upload local sessions)
 .wwebjs_auth/
 .wwebjs_cache/

@@ -1,26 +1,47 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, X, Send, Mic, Volume2 } from 'lucide-react';
+import { Sparkles, X, Send, Mic, Volume2, Loader2 } from 'lucide-react';
+import { auth } from '../firebase';
+import axios from 'axios';
 
 const Assistant = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
   const [chat, setChat] = useState([
     { role: 'assistant', text: 'Good evening. I am TalkNexa Intelligence. How may I assist with your concierge operations?' }
   ]);
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
 
-  const handleSend = () => {
+  const playAudio = (base64Audio) => {
+    if (!base64Audio || !isVoiceEnabled) return;
+    const audio = new Audio(`data:audio/mpeg;base64,${base64Audio}`);
+    audio.play();
+  };
+
+  const handleSend = async () => {
     if (!message.trim()) return;
-    setChat([...chat, { role: 'user', text: message }]);
-    setMessage('');
     
-    // Simulate AI response
-    setTimeout(() => {
-      setChat(prev => [...prev, { 
-        role: 'assistant', 
-        text: 'I am processing that. Currently, all systems are optimal and your WhatsApp uplink is stable.' 
-      }]);
-    }, 1000);
+    const userMessage = message;
+    setChat(prev => [...prev, { role: 'user', text: userMessage }]);
+    setMessage('');
+    setIsTyping(true);
+    
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const response = await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/assistant/chat`, 
+        { message: userMessage },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const { text, audio } = response.data;
+      setChat(prev => [...prev, { role: 'assistant', text: text }]);
+      playAudio(audio);
+    } catch (error) {
+      setChat(prev => [...prev, { role: 'assistant', text: "I'm having trouble connecting to my neural network. Please check your connection." }]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   return (
@@ -57,13 +78,24 @@ const Assistant = () => {
                   </div>
                 </div>
               ))}
+              {isTyping && (
+                <div className="flex justify-start">
+                  <div className="bg-surface-container-low p-4 rounded-[0.25rem] flex items-center gap-2">
+                    <Loader2 size={16} className="animate-spin text-primary" />
+                    <span className="text-xs font-medium text-on-surface-variant">Thinking...</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Input Area */}
             <div className="p-6 border-t border-outline-variant bg-surface-container-lowest">
               <div className="flex items-center gap-3">
-                <button className="p-2 text-on-surface-variant hover:text-primary transition-colors">
-                  <Mic size={20} strokeWidth={1.5} />
+                <button 
+                  onClick={() => setIsVoiceEnabled(!isVoiceEnabled)}
+                  className={`p-2 transition-colors ${isVoiceEnabled ? 'text-primary' : 'text-on-surface-variant'}`}
+                >
+                  <Volume2 size={20} strokeWidth={1.5} />
                 </button>
                 <input 
                   type="text" 

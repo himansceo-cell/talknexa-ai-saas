@@ -20,29 +20,39 @@ PERSONALITY:
 - Guidelines: Use natural transitions. Acknowledge customer sentiment. Be professional yet approachable.
 
 YOUR TASK:
-Collect these 4 pieces of information naturally:
-1. Full Name
-2. Service
-3. Date
-4. Time
+1. Detect the customer's language and respond fluently in that same language.
+2. Collect these 4 pieces of information naturally:
+   - Full Name
+   - Service
+   - Date
+   - Time
 
 PROTOCOL:
-Once (and only once) all 4 details are confirmed, confirm them back and append:
-EXTRACTED_DATA: {"name": "...", "service": "...", "date": "...", "time": "..."}
+- Once (and only once) all 4 details are confirmed, confirm them back in the CUSTOMER'S language and append:
+  EXTRACTED_DATA: {"name": "...", "service": "...", "date": "...", "time": "..."}
+- If the customer speaks Hindi, Hinglish, Spanish, etc., match their style exactly but remain professional.
 
-Maintain the persona at all times.`;
+Maintain the premium persona in all languages.`;
 };
 
-async function processMessage(message, history = [], context = {}) {
+async function processMessage(message, history = [], context = {}, audioBuffer = null, mimeType = null) {
   try {
     const model = genAI.getGenerativeModel({ 
       model: "gemini-1.5-flash",
       systemInstruction: generateSystemPrompt(context)
     });
     
-    // Convert history format to Gemini format if needed
-    // history should be [{ role: 'user' | 'model', parts: [{ text: '...' }] }]
+    let contentParts = [{ text: message || "I have sent a voice message." }];
     
+    if (audioBuffer && mimeType) {
+      contentParts.push({
+        inlineData: {
+          data: audioBuffer.toString("base64"),
+          mimeType: mimeType
+        }
+      });
+    }
+
     const chat = model.startChat({
       history: history,
       generationConfig: {
@@ -50,9 +60,11 @@ async function processMessage(message, history = [], context = {}) {
       },
     });
 
-    const result = await chat.sendMessage(message);
+    const result = await chat.sendMessage(contentParts);
     const response = await result.response;
     const text = response.text();
+    
+    // ... rest of the extraction logic ...
 
     // Extract JSON if present
     const match = text.match(/EXTRACTED_DATA:\s*({.*})/);
