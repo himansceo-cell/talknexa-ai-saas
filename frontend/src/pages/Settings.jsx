@@ -248,8 +248,6 @@ const Settings = () => {
           </div>
         </div>
 
-        </div>
-
         {/* Live Persona Preview Panel */}
         <motion.section 
           initial={{ opacity: 0, scale: 0.95 }}
