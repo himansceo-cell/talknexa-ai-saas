@@ -7,57 +7,60 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
+import Billing from './pages/Billing';
+
+import { UIProvider } from './context/UIContext';
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          
-          <Route 
-            path="/" 
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Dashboard />
-                </Layout>
-              </ProtectedRoute>
-            } 
-          />
+      <UIProvider>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            
+            <Route 
+              path="/" 
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Dashboard />
+                  </Layout>
+                </ProtectedRoute>
+              } 
+            />
 
-          <Route 
-            path="/settings" 
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <Settings />
-                </Layout>
-              </ProtectedRoute>
-            } 
-          />
+            <Route 
+              path="/billing" 
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Billing />
+                  </Layout>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/settings" 
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Settings />
+                  </Layout>
+                </ProtectedRoute>
+              } 
+            />
 
-          {/* Placeholder routes for others */}
-          <Route 
-            path="/appointments" 
-            element={
-              <ProtectedRoute>
-                <Layout>
-                  <div className="card">
-                    <h2 className="text-xl font-bold mb-4">All Appointments</h2>
-                    <p className="text-gray-500 text-center py-10">Coming soon...</p>
-                  </div>
-                </Layout>
-              </ProtectedRoute>
-            } 
-          />
+            {/* Placeholder routes for others */}
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Router>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Router>
+      </UIProvider>
     </AuthProvider>
   );
 }
+
 
 export default App;

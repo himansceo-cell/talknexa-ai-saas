@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithPopup, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
-import { auth, db } from '../firebase';
+import { auth, db, googleProvider } from '../firebase';
 import { UserPlus, Mail, Lock, Building, Phone, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -18,6 +18,29 @@ const Signup = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  const handleGoogleSignup = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      
+      // Create user document if it doesn't exist
+      await setDoc(doc(db, 'users', user.uid), {
+        email: user.email,
+        businessName: user.displayName || 'My Business',
+        phoneNumber: '',
+        createdAt: new Date().toISOString(),
+      }, { merge: true });
+
+      navigate('/');
+    } catch (err) {
+      setError('Failed to sign up with Google');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSignup = async (e) => {
     e.preventDefault();
@@ -153,7 +176,7 @@ const Signup = () => {
             <button
               type="submit"
               disabled={loading}
-              className="btn-indigo w-full mt-6"
+              className="btn-premium w-full mt-6"
             >
               {loading ? (
                 <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white" />
@@ -163,6 +186,25 @@ const Signup = () => {
                   <ArrowRight size={18} />
                 </>
               )}
+            </button>
+
+            <div className="relative my-8">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-outline-variant"></div>
+              </div>
+              <div className="relative flex justify-center text-[0.65rem] uppercase font-black tracking-widest">
+                <span className="bg-surface-container-lowest px-4 text-on-surface-variant/40">Or continue with</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleSignup}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-4 bg-white/[0.03] border border-white/[0.05] p-5 rounded-2xl hover:bg-white/[0.05] transition-all group active:scale-[0.98]"
+            >
+              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+              <span className="text-sm font-bold text-on-surface">Sign up with Google</span>
             </button>
           </form>
 

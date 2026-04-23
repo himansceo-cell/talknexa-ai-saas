@@ -5,7 +5,7 @@ import { QrCode, CheckCircle, RefreshCw, AlertCircle, Smartphone, Power } from '
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:3001';
 
 const WhatsAppConfig = () => {
   const { user } = useAuth();
@@ -32,12 +32,25 @@ const WhatsAppConfig = () => {
     });
 
     checkStatus();
+    
+    // Safety timeout: if we're still loading after 5 seconds, force it to disconnected
+    // so the user can at least see the "Initialize" button.
+    const timeout = setTimeout(() => {
+      setStatus(prev => prev === 'loading' ? 'disconnected' : prev);
+    }, 5000);
 
-    return () => newSocket.disconnect();
+    return () => {
+      newSocket.disconnect();
+      clearTimeout(timeout);
+    };
   }, [user]);
 
   const checkStatus = async () => {
+    console.log("Checking WhatsApp status at:", `${BACKEND_URL}/api/whatsapp/status`);
     try {
+      const testRes = await axios.get(`${BACKEND_URL}/api/test`);
+      console.log("Public test endpoint reached:", testRes.data);
+      
       const idToken = await user.getIdToken();
       const response = await axios.get(`${BACKEND_URL}/api/whatsapp/status`, {
         headers: { Authorization: `Bearer ${idToken}` }
@@ -45,6 +58,9 @@ const WhatsAppConfig = () => {
       setStatus(response.data.status);
     } catch (error) {
       console.error("Error checking WhatsApp status:", error);
+      // If we can't reach the backend or there's an error, default to disconnected
+      // so the user can at least try to initialize.
+      setStatus('disconnected');
     }
   };
 
@@ -87,7 +103,7 @@ const WhatsAppConfig = () => {
             <p className="text-sm font-manrope font-bold text-on-surface mb-6">Uplink is currently offline.</p>
             <button 
               onClick={startSession}
-              className="btn-indigo mx-auto"
+              className="btn-premium mx-auto"
             >
               Initialize Connection
             </button>

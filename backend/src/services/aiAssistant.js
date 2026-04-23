@@ -1,13 +1,13 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { db } = require("./firebaseAdmin");
-const { textToSpeech } = require("./ttsService");
+const clientManager = require("./clientManager");
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const getAssistantResponse = async (userId, userMessage) => {
   try {
-    // 1. Fetch current context (Appointments & Analytics)
-    const [appointmentsSnap, analyticsSnap] = await Promise.all([
+    // 1. Fetch current context (Appointments, Analytics, & WhatsApp Status)
+    const [appointmentsSnap, analyticsSnap, whatsappStatus] = await Promise.all([
       db.collection("appointments")
         .where("userId", "==", userId)
         .orderBy("createdAt", "desc")
@@ -15,7 +15,8 @@ const getAssistantResponse = async (userId, userMessage) => {
         .get(),
       db.collection("appointments")
         .where("userId", "==", userId)
-        .get()
+        .get(),
+      clientManager.getClientStatus(userId)
     ]);
     
     const appointments = appointmentsSnap.docs.map(doc => doc.data());
@@ -39,6 +40,7 @@ const getAssistantResponse = async (userId, userMessage) => {
       - Total Bookings to Date: ${totalBookings}
       - Recent Appointments: ${JSON.stringify(appointments)}
       - Service Popularity: ${JSON.stringify(servicePopularity)}
+      - WhatsApp Connection Status: ${whatsappStatus}
       - Today's Date: ${new Date().toLocaleDateString()}
       - Current Time: ${new Date().toLocaleTimeString()}
 
@@ -47,24 +49,19 @@ const getAssistantResponse = async (userId, userMessage) => {
       - provide proactive advice (e.g., "You have a busy morning tomorrow with 3 bookings").
       - If there are no appointments, suggest sharing the WhatsApp link to potential clients.
       - Keep responses elegant and concise. Never use generic or robotic language.
-      - If asked about status, reply: "Operational status is 100%. The neural bridge to WhatsApp is secure."
+      - If asked about status, use the "WhatsApp Connection Status" provided. If it's "ready" or "connected", say status is 100%. If "disconnected" or "initializing", suggest checking the Uplink settings.
     `;
 
     const result = await model.generateContent([systemPrompt, userMessage]);
     const responseText = result.response.text();
     
-    // 3. Generate Audio for the Response
-    const audioContent = await textToSpeech(responseText);
-
     return {
-      text: responseText,
-      audio: audioContent
+      text: responseText
     };
   } catch (error) {
     console.error("AI Assistant Error:", error);
     return {
-      text: "I apologize, but I am experiencing a temporary lapse in my processing matrix. Please verify your Gemini API key.",
-      audio: null
+      text: "I apologize, but I am experiencing a temporary lapse in my processing matrix. Please verify your Gemini API key."
     };
   }
 };
