@@ -55,6 +55,7 @@ app.post("/api/webhook/stripe", express.raw({ type: "application/json" }), async
           }, { merge: true });
           console.log(`User ${userId} upgraded to Pro!`);
         }
+      }
       break;
     }
 
