@@ -40,18 +40,21 @@ app.post("/api/webhook/stripe", express.raw({ type: "application/json" }), async
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object;
-      const userId = session.metadata.firebaseUID;
-      if (userId) {
-        await db.collection("users").doc(userId).set({
-          subscription: {
-            status: "active",
-            plan: "Professional",
-            updatedAt: new Date().toISOString(),
-            stripeSubscriptionId: session.subscription
-          }
-        }, { merge: true });
-        console.log(`User ${userId} upgraded to Pro!`);
-      }
+      
+      // Handle Subscription Upgrade
+      if (session.mode === "subscription") {
+        const userId = session.metadata.firebaseUID;
+        if (userId) {
+          await db.collection("users").doc(userId).set({
+            subscription: {
+              status: "active",
+              plan: "Professional",
+              updatedAt: new Date().toISOString(),
+              stripeSubscriptionId: session.subscription
+            }
+          }, { merge: true });
+          console.log(`User ${userId} upgraded to Pro!`);
+        }
       break;
     }
 
@@ -92,6 +95,11 @@ app.post("/api/webhook/stripe", express.raw({ type: "application/json" }), async
 });
 
 app.use(express.json());
+
+// Health Check for Render/UptimeRobot
+app.get("/health", (req, res) => {
+  res.status(200).send("TalkNexa Backend is Operational");
+});
 
 // Socket.io connection logic
 io.on("connection", (socket) => {

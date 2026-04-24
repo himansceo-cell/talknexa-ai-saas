@@ -8,6 +8,8 @@ import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
 import Billing from './pages/Billing';
+import Success from './pages/Success';
+import Cancel from './pages/Cancel';
 
 import { UIProvider } from './context/UIContext';
 
@@ -51,6 +53,9 @@ function App() {
                 </ProtectedRoute>
               } 
             />
+
+            <Route path="/success" element={<ProtectedRoute><Success /></ProtectedRoute>} />
+            <Route path="/cancel" element={<ProtectedRoute><Cancel /></ProtectedRoute>} />
 
             {/* Placeholder routes for others */}
 

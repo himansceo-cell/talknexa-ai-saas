@@ -107,9 +107,9 @@ const Billing = () => {
 
           <ul className="space-y-4 flex-1">
             {[
+              '3 Free Bookings',
               '1 WhatsApp Connection',
               'Basic AI Responses',
-              'Manual Appointment Sync',
               'Community Support'
             ].map((feature) => (
               <li key={feature} className="flex items-center gap-3 text-sm font-medium text-on-surface-variant">
@@ -152,7 +152,7 @@ const Billing = () => {
             {[
               'Unlimited Bookings',
               'Advanced Persona Engine',
-              'Voice Note Processing',
+              'Google Calendar Sync',
               'Priority Concierge Logic',
               '24/7 Neural Uptime'
             ].map((feature) => (

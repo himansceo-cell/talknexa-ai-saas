@@ -1,5 +1,5 @@
 const { Client, LocalAuth, MessageMedia } = require("whatsapp-web.js");
-const { processMessage } = require("./aiService");
+const { processMessage, textToSpeech } = require("./aiService");
 const { db, admin } = require("./firebaseAdmin");
 const qrcode = require("qrcode");
 const { createCalendarEvent, isSlotAvailable } = require("./calendarService");
@@ -23,9 +23,23 @@ class ClientManager {
     console.log(`Initializing WhatsApp client for user: ${userId}`);
     
     const client = new Client({
-      authStrategy: new LocalAuth({ clientId: userId }),
+      authStrategy: new LocalAuth({ 
+        clientId: userId,
+        dataPath: './sessions'
+      }),
       puppeteer: {
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        headless: true,
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-accelerated-2d-canvas",
+          "--no-first-run",
+          "--no-zygote",
+          "--single-process",
+          "--disable-gpu"
+        ],
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null,
       },
     });
 
@@ -88,27 +102,26 @@ class ClientManager {
         const userData = userDoc.data() || {};
         const isPro = userData.subscription?.status === 'active';
         const bookingCount = appointmentsSnap.size;
-        const FREE_LIMIT = 5;
+        const FREE_LIMIT = 3;
 
-        // 2. Enforce Free Tier Limits
+        // 2. Enforce Free Tier Limits (3 Bookings)
         if (!isPro && bookingCount >= FREE_LIMIT) {
-          console.log(`[${userId}] Free limit reached. Skipping AI response.`);
+          console.log(`[${userId}] Free limit reached. Sending upgrade notice.`);
+          await msg.reply("This business assistant has reached its free booking limit. Please contact the business owner to upgrade their service!");
           return; 
         }
 
         let audioBuffer = null;
         let mimeType = null;
+        let isVoiceInput = false;
 
         if (msg.hasMedia) {
           const media = await msg.downloadMedia();
           if (media.mimetype.includes("audio")) {
-            // Block voice for non-pro
-            if (!isPro) {
-              await msg.reply("I've received your voice note, but advanced voice processing is a Pro feature. Please type your request!");
-              return;
-            }
+            // Voice processing is premium or requested by user
             audioBuffer = Buffer.from(media.data, "base64");
             mimeType = media.mimetype;
+            isVoiceInput = true;
             console.log(`Audio media received from ${msg.from}`);
           }
         }
@@ -125,65 +138,55 @@ class ClientManager {
           .filter(m => m.id.id !== msg.id.id) // Exclude the current message
           .map(m => ({
             role: m.fromMe ? "model" : "user",
-            parts: [{ text: m.body }]
+            parts: [{ text: m.body || (m.hasMedia ? "[Media/Voice]" : "") }]
           }));
 
         const aiResponse = await processMessage(msg.body, history, businessContext, audioBuffer, mimeType);
         
+        // Helper to send reply (Voice or Text)
+        const sendReply = async (text) => {
+          if (isVoiceInput) {
+            const voiceBase64 = await textToSpeech(text);
+            if (voiceBase64) {
+              const audioMedia = new MessageMedia("audio/ogg; codecs=opus", voiceBase64);
+              await client.sendMessage(msg.from, audioMedia, { sendAudioAsVoice: true });
+              return;
+            }
+          }
+          await msg.reply(text);
+        };
+
         if (aiResponse.extractedData) {
-          // 0. Check Google Calendar Availability (Conflict Prevention)
+          // Check Google Calendar Availability
           const isAvailable = await isSlotAvailable(userId, aiResponse.extractedData.date, aiResponse.extractedData.time);
           
           if (!isAvailable) {
             const conflictReply = "I'm sorry, but that time slot has just been taken. Could you please suggest another time or date?";
-            await msg.reply(conflictReply);
-            
-            // Send voice for conflict too
-            if (process.env.ELEVENLABS_API_KEY) {
-              const audioBase64 = await textToSpeech(conflictReply);
-              if (audioBase64) {
-                const media = new MessageMedia("audio/mpeg", audioBase64);
-                await client.sendMessage(msg.from, media, { sendAudioAsVoice: true });
-              }
-            }
+            await sendReply(conflictReply);
             return;
           }
 
-          // 1. Generate Payment Link
-          const depositAmount = businessContext.depositAmount || 20; // Default $20
-          const paymentLink = await createPaymentLink(
-            aiResponse.extractedData.name,
-            aiResponse.extractedData.service,
-            depositAmount
-          );
-
-          // 2. Save appointment as pending
-          const appointment = {
+          // Create appointment
+          const appointmentData = {
             userId: userId,
             customerName: aiResponse.extractedData.name,
             service: aiResponse.extractedData.service,
             date: aiResponse.extractedData.date,
             time: aiResponse.extractedData.time,
-            status: paymentLink ? "pending_payment" : "confirmed", 
+            status: "confirmed", 
             customerPhone: msg.from,
             reminded: false,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
           };
 
-          await db.collection("appointments").add(appointment);
-          
-          // 3. Try to sync to Google Calendar (if linked)
-          createCalendarEvent(userId, appointment).catch(e => console.error("Auto-sync failed:", e));
-          
-          let finalReply = aiResponse.reply;
-          if (paymentLink) {
-            finalReply += `\n\n💳 *To finalize your booking, please complete the $${depositAmount} deposit here:* ${paymentLink}\n\n_Your slot is reserved for the next 15 minutes._`;
-          }
+          await db.collection("appointments").add(appointmentData);
 
-          await msg.reply(finalReply);
+          // Sync to Google Calendar
+          createCalendarEvent(userId, appointmentData).catch(e => console.error("Auto-sync failed:", e));
+          
+          await sendReply(aiResponse.reply);
         } else {
-          // Information still missing, send AI follow-up
-          await msg.reply(aiResponse.reply);
+          await sendReply(aiResponse.reply);
         }
       } catch (error) {
         console.error("Error processing message with AI:", error);
@@ -224,24 +227,7 @@ class ClientManager {
   }
 
   async startAllClients() {
-    console.log("🚀 Starting Cold Start Optimization: Re-initializing all active sessions...");
-    try {
-      const snapshot = await db.collection("users").get();
-      const authenticatedUsers = snapshot.docs
-        .filter(doc => doc.data().whatsappConnected) // We should mark this on 'ready'
-        .map(doc => doc.id);
-
-      console.log(`Found ${authenticatedUsers.length} previously connected users.`);
-      
-      // Initialize them sequentially to avoid CPU spikes
-      for (const userId of authenticatedUsers) {
-        await this.initClient(userId);
-        // Small delay between initializations
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-    } catch (error) {
-      console.error("Cold Start Optimization Failed:", error);
-    }
+    console.log("Cold Start Optimization disabled to save server resources.");
   }
 }
 

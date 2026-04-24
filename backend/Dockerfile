@@ -50,6 +50,8 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 WORKDIR /app
 
+RUN mkdir -p sessions && chmod 777 sessions
+
 COPY package*.json ./
 RUN npm install
 

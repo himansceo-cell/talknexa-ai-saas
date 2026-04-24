@@ -29,8 +29,8 @@ const createCheckoutSession = async (userId, userEmail) => {
         },
       ],
       mode: "subscription",
-      success_url: `${process.env.FRONTEND_URL}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL}/billing`,
+      success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL}/cancel`,
     });
 
     return session.url;
@@ -59,4 +59,6 @@ const createPortalSession = async (userId) => {
   }
 };
 
-module.exports = { createCheckoutSession, createPortalSession };
+};
+ 
+ module.exports = { createCheckoutSession, createPortalSession };
