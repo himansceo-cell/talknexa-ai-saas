@@ -332,9 +332,11 @@ app.get("/api/auth/google/callback", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, async () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
   
-  // Cold Start Optimization: Restore active WhatsApp sessions
-  await clientManager.startAllClients();
+  // Start clients in the background to avoid blocking the main thread during startup
+  clientManager.startAllClients().catch(err => {
+    console.error("Error starting WhatsApp clients:", err);
+  });
 });
