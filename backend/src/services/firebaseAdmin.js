@@ -19,14 +19,22 @@ try {
   console.error("CRITICAL: Firebase Service Account Key Error:", error.message);
 }
 
-if (serviceAccount || process.env.FIREBASE_DATABASE_URL) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    databaseURL: process.env.FIREBASE_DATABASE_URL
-  });
+if (serviceAccount) {
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      databaseURL: process.env.FIREBASE_DATABASE_URL
+    });
+    console.log("✅ Firebase Admin initialized successfully.");
+  } catch (err) {
+    console.error("❌ Firebase Initialization Failed:", err.message);
+  }
+} else {
+  console.warn("⚠️ Firebase service account not found. Some features will be disabled.");
 }
 
-const db = admin.firestore();
-const auth = admin.auth();
+// Export empty/mock objects if initialization fails to prevent crash elsewhere
+const db = admin.apps.length > 0 ? admin.firestore() : null;
+const auth = admin.apps.length > 0 ? admin.auth() : null;
 
 module.exports = { db, auth, admin };

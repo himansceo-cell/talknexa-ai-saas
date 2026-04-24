@@ -332,6 +332,15 @@ app.get("/api/auth/google/callback", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
+
+// Global error handlers for production debugging
+process.on('uncaughtException', (err) => {
+  console.error('CRITICAL: Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('CRITICAL: Unhandled Rejection at:', promise, 'reason:', reason);
+});
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
   
