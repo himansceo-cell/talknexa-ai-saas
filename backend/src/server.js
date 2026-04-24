@@ -97,6 +97,14 @@ app.post("/api/webhook/stripe", express.raw({ type: "application/json" }), async
 
 app.use(express.json());
 
+app.get("/", (req, res) => {
+  res.json({
+    status: "online",
+    message: "TalkNexa AI Backend is Live",
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Health Check for Render/UptimeRobot
 app.get("/health", (req, res) => {
   res.status(200).send("TalkNexa Backend is Operational");
