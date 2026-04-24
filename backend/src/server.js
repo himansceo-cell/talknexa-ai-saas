@@ -17,8 +17,9 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*", // Adjust for production
-    methods: ["GET", "POST"]
+    origin: ["https://talknexa09.pages.dev", "https://a2f99da3.talknexa09.pages.dev", "http://localhost:5173"],
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
