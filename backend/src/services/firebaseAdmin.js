@@ -6,11 +6,21 @@ try {
   // If the key is provided as a stringified JSON in the environment
   if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
     let keyStr = process.env.FIREBASE_SERVICE_ACCOUNT_KEY.trim();
-    // Handle potential double quotes from some environment setups
+    // 1. Remove wrapping quotes if present
     if (keyStr.startsWith('"') && keyStr.endsWith('"')) {
       keyStr = keyStr.substring(1, keyStr.length - 1);
     }
-    serviceAccount = JSON.parse(keyStr);
+    // 2. Fix potential broken newlines or spaces caused by pasting
+    keyStr = keyStr.replace(/[\n\r]/g, ''); // Remove actual newlines
+    
+    try {
+      serviceAccount = JSON.parse(keyStr);
+    } catch (parseError) {
+      console.error("❌ Initial JSON Parse failed, trying to fix private key formatting...");
+      // 3. Last ditch effort: fix escaped newlines if they got double-escaped
+      keyStr = keyStr.replace(/\\\\n/g, '\\n');
+      serviceAccount = JSON.parse(keyStr);
+    }
   } else {
     // Fallback if the user has a local file (for development)
     serviceAccount = require("../../serviceAccountKey.json");
